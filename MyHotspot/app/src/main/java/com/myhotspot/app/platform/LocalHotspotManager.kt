@@ -132,23 +132,50 @@ class LocalHotspotManager @Inject constructor(
 
     fun getHotspotIpAddress(): String {
         try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            while (interfaces.hasMoreElements()) {
-                val iface = interfaces.nextElement()
+            val interfaces = NetworkInterface.getNetworkInterfaces()?.toList() ?: emptyList()
+
+            // 1. First priority: interfaces dedicated to SoftAP / Hotspot (swlan, ap, softap, p2p)
+            for (iface in interfaces) {
                 val name = iface.name.lowercase()
-                // Typical hotspot/AP interface names on Android: wlan0, wlan1, ap0, swlan0, rndis0
-                if (name.contains("ap") || name.contains("wlan") || name.contains("hotspot")) {
-                    val addrs = iface.inetAddresses
-                    while (addrs.hasMoreElements()) {
-                        val addr = addrs.nextElement()
+                if (name.startsWith("swlan") || name.startsWith("ap") || name.startsWith("softap") || name.startsWith("p2p") || name.contains("wigig")) {
+                    for (addr in iface.inetAddresses) {
                         if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                            val ip = addr.hostAddress ?: ""
-                            if (ip.isNotEmpty()) return ip
+                            val host = addr.hostAddress ?: ""
+                            if (host.isNotEmpty() && !host.startsWith("127.")) {
+                                return host
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Second priority: Standard Android hotspot subnets (192.168.49.x for LocalOnlyHotspot or 192.168.43.x)
+            for (iface in interfaces) {
+                for (addr in iface.inetAddresses) {
+                    if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                        val host = addr.hostAddress ?: ""
+                        if (host.startsWith("192.168.49.") || host.startsWith("192.168.43.")) {
+                            return host
+                        }
+                    }
+                }
+            }
+
+            // 3. Third priority: Any 192.168.x.x interface that is not wlan0 (client)
+            for (iface in interfaces) {
+                val name = iface.name.lowercase()
+                if (!name.startsWith("wlan0") && !name.startsWith("rmnet") && !name.startsWith("ccmni")) {
+                    for (addr in iface.inetAddresses) {
+                        if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                            val host = addr.hostAddress ?: ""
+                            if (host.startsWith("192.168.")) return host
                         }
                     }
                 }
             }
         } catch (_: Exception) {}
-        return "192.168.43.1"
+
+        // 192.168.49.1 is the universal LocalOnlyHotspot default gateway on Android (Samsung, Pixel, Xiaomi, etc.)
+        return "192.168.49.1"
     }
 }

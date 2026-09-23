@@ -8,26 +8,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Embedded HTTP & HTTPS CONNECT Proxy Server.
+ * High-performance embedded HTTP & HTTPS CONNECT Proxy Server.
  *
- * Runs locally on the phone (default port 8282).
+ * Runs locally on the phone (listening on 0.0.0.0:8282).
  * When connected clients route their traffic through this proxy, all requests
  * are originated directly by the phone itself.
- *
- * This effectively BYPASSES:
- * 1. Carrier tethering/hotspot blocking and throttling.
- * 2. Carrier APN restriction (TTL remains untouched).
- * 3. Wi-Fi hotspot sharing restrictions (enables Wi-Fi repeater mode).
  */
 @Singleton
 class LocalProxyServer @Inject constructor() {
@@ -50,16 +47,19 @@ class LocalProxyServer @Inject constructor() {
 
         serverJob = scope.launch {
             try {
-                serverSocket = ServerSocket(port)
+                val server = ServerSocket()
+                server.reuseAddress = true
+                server.bind(InetSocketAddress("0.0.0.0", port))
+                serverSocket = server
                 _isRunning.value = true
-                Log.d(tag, "Proxy server started on port $port")
+                Log.d(tag, "Proxy server bound to 0.0.0.0:$port")
 
                 while (_isRunning.value) {
-                    val clientSocket = serverSocket?.accept() ?: break
+                    val clientSocket = server.accept() ?: break
                     val clientIp = clientSocket.inetAddress?.hostAddress ?: "Unknown"
                     connectedClientIps.add(clientIp)
 
-                    launch {
+                    launch(Dispatchers.IO) {
                         handleClient(clientSocket)
                     }
                 }
@@ -88,7 +88,7 @@ class LocalProxyServer @Inject constructor() {
     private fun handleClient(clientSocket: Socket) {
         try {
             clientSocket.soTimeout = 30000
-            val clientIn = clientSocket.getInputStream()
+            val clientIn = BufferedInputStream(clientSocket.getInputStream())
             val clientOut = clientSocket.getOutputStream()
 
             val header = readHeader(clientIn)
@@ -97,7 +97,7 @@ class LocalProxyServer @Inject constructor() {
                 return
             }
 
-            val firstLine = header.lines().firstOrNull() ?: ""
+            val firstLine = header.lines().firstOrNull()?.trim() ?: ""
             val parts = firstLine.split(" ")
             if (parts.size < 2) {
                 clientSocket.close()
@@ -108,23 +108,20 @@ class LocalProxyServer @Inject constructor() {
             val target = parts[1]
 
             if (method == "CONNECT") {
-                // HTTPS CONNECT Tunneling
                 val targetParts = target.split(":")
                 val host = targetParts[0]
                 val port = if (targetParts.size > 1) targetParts[1].toIntOrNull() ?: 443 else 443
 
-                val remoteSocket = Socket(host, port)
+                val remoteSocket = Socket()
+                remoteSocket.connect(InetSocketAddress(host, port), 15000)
                 remoteSocket.soTimeout = 30000
 
-                // Acknowledge connection to client
                 val response = "HTTP/1.1 200 Connection Established\r\n\r\n"
                 clientOut.write(response.toByteArray(Charsets.ISO_8859_1))
                 clientOut.flush()
 
-                // Bidirectional pipe
                 pipeSockets(clientSocket, remoteSocket)
             } else {
-                // Standard HTTP Proxying
                 val uri = if (target.startsWith("http://", ignoreCase = true)) {
                     target.substring(7)
                 } else {
@@ -134,54 +131,76 @@ class LocalProxyServer @Inject constructor() {
                 val host = hostPort.substringBefore(":")
                 val port = if (hostPort.contains(":")) hostPort.substringAfter(":").toIntOrNull() ?: 80 else 80
 
-                val remoteSocket = Socket(host, port)
-                val remoteOut = remoteSocket.getOutputStream()
-                val remoteIn = remoteSocket.getInputStream()
+                val remoteSocket = Socket()
+                remoteSocket.connect(InetSocketAddress(host, port), 15000)
+                remoteSocket.soTimeout = 30000
 
-                // Forward request headers
+                val remoteOut = remoteSocket.getOutputStream()
                 remoteOut.write(header.toByteArray(Charsets.ISO_8859_1))
                 remoteOut.flush()
 
-                // Forward response back to client
                 pipeSockets(clientSocket, remoteSocket)
             }
-        } catch (e: Exception) {
-            // Expected socket disconnects
+        } catch (_: Exception) {
         } finally {
             try { clientSocket.close() } catch (_: Exception) {}
         }
     }
 
     private fun readHeader(inputStream: InputStream): String {
-        val buffer = StringBuilder()
-        val byteBuf = ByteArray(1)
+        val baos = ByteArrayOutputStream()
+        var matched = 0
+
         while (true) {
-            val read = inputStream.read(byteBuf)
-            if (read == -1) break
-            buffer.append(byteBuf[0].toInt().toChar())
-            if (buffer.endsWith("\r\n\r\n") || buffer.endsWith("\n\n")) {
-                break
+            val b = inputStream.read()
+            if (b == -1) break
+            baos.write(b)
+
+            if ((matched == 0 || matched == 2) && b == '\r'.code) {
+                matched++
+            } else if ((matched == 1 || matched == 3) && b == '\n'.code) {
+                matched++
+                if (matched == 4) break
+            } else if (b == '\n'.code) {
+                if (matched >= 2) break
+                matched = 2
+            } else {
+                matched = 0
             }
-            if (buffer.length > 8192) break // Prevent header overflow
+
+            if (baos.size() > 16384) break
         }
-        return buffer.toString()
+        return baos.toString(Charsets.ISO_8859_1.name())
     }
 
     private fun pipeSockets(sockA: Socket, sockB: Socket) {
         val inA = sockA.getInputStream()
-        val outA = sockA.getOutputStream()
+        val outA = sockB.getOutputStream()
         val inB = sockB.getInputStream()
-        val outB = sockB.getOutputStream()
+        val outB = sockA.getOutputStream()
 
         val threadA = Thread {
-            copyStream(inA, outB)
-            try { sockB.shutdownOutput() } catch (_: Exception) {}
-        }
-        val threadB = Thread {
-            copyStream(inB, outA)
-            try { sockA.shutdownOutput() } catch (_: Exception) {}
+            try {
+                copyStream(inA, outA)
+            } catch (_: Exception) {
+            } finally {
+                try { sockB.shutdownOutput() } catch (_: Exception) {}
+                try { sockA.close() } catch (_: Exception) {}
+            }
         }
 
+        val threadB = Thread {
+            try {
+                copyStream(inB, outB)
+            } catch (_: Exception) {
+            } finally {
+                try { sockA.shutdownOutput() } catch (_: Exception) {}
+                try { sockB.close() } catch (_: Exception) {}
+            }
+        }
+
+        threadA.isDaemon = true
+        threadB.isDaemon = true
         threadA.start()
         threadB.start()
 
@@ -193,14 +212,12 @@ class LocalProxyServer @Inject constructor() {
 
     private fun copyStream(input: InputStream, output: OutputStream) {
         val buffer = ByteArray(8192)
-        try {
-            while (true) {
-                val bytesRead = input.read(buffer)
-                if (bytesRead == -1) break
-                output.write(buffer, 0, bytesRead)
-                output.flush()
-                _totalBytesTransferred.value += bytesRead
-            }
-        } catch (_: Exception) {}
+        while (true) {
+            val bytesRead = input.read(buffer)
+            if (bytesRead <= 0) break
+            output.write(buffer, 0, bytesRead)
+            output.flush()
+            _totalBytesTransferred.value += bytesRead
+        }
     }
 }
