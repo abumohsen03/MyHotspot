@@ -97,4 +97,20 @@ class HotspotViewModel @Inject constructor(
             }
         }
     }
+
+    fun openSystemTetheringSettings() {
+        try {
+            val intent = Intent("android.settings.TETHER_SETTINGS").apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {}
+        }
+    }
 }
