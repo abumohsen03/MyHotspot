@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -52,7 +51,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -89,8 +87,6 @@ fun HotspotDashboardScreen(
     val clipboardManager = LocalClipboardManager.current
 
     val hotspotState by viewModel.hotspotState.collectAsState()
-    val isProxyRunning by viewModel.isProxyRunning.collectAsState()
-    val totalBytes by viewModel.totalBytesTransferred.collectAsState()
     val capabilities by viewModel.capabilities.collectAsState()
     val clients by viewModel.connectedClients.collectAsState()
 
@@ -111,7 +107,7 @@ fun HotspotDashboardScreen(
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "نقطة اتصال ذكية • تجاوز قيود وحجب الشبكات",
+                            text = "بث فوري وتلقائي للإنترنت • مشاركة سريعة بدون تعقيد",
                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                     }
@@ -142,6 +138,78 @@ fun HotspotDashboardScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // --- Direct Internet Hotspot Quick Action Button ---
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Primary.copy(alpha = 0.08f)),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Primary.copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Wifi,
+                                contentDescription = null,
+                                tint = Primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "بث الإنترنت التلقائي المباشر",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = Primary
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Primary
+                        ) {
+                            Text(
+                                text = "تلقائي بدون وكيل",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "لبث الإنترنت فوراً لجميع الأجهزة (كمبيوتر، آيفون، شاشات) بدون أي شروط وبدون إدخال أي بروكسي يدوي، اضغط الزر أدناه لتفعيل نقطة الاتصال المباشرة:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 20.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = { viewModel.openSystemTetheringSettings() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                    ) {
+                        Icon(imageVector = Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "تشغيل بث الإنترنت المباشر الآن 🚀",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+
             // --- Active Hotspot Credentials Card ---
             AnimatedVisibility(visible = hotspotState is HotspotState.Active) {
                 val active = hotspotState as? HotspotState.Active
@@ -164,11 +232,11 @@ fun HotspotDashboardScreen(
                                     Icon(
                                         imageVector = Icons.Default.Wifi,
                                         contentDescription = null,
-                                        tint = Primary
+                                        tint = Success
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "بيانات نقطة الاتصال",
+                                        text = "بيانات الشبكة الحالية",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 17.sp
                                     )
@@ -192,7 +260,7 @@ fun HotspotDashboardScreen(
 
                             // Network SSID Row
                             CredentialRow(
-                                label = "اسم الشبكة (SSID)",
+                                label = "اسم نقطة الاتصال (Network Name)",
                                 value = active.ssid,
                                 onCopy = { copyToClipboard("اسم الشبكة", active.ssid) }
                             )
@@ -206,148 +274,28 @@ fun HotspotDashboardScreen(
                                 onCopy = { copyToClipboard("كلمة المرور", active.passphrase) }
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                            // Gateway IP
-                            CredentialRow(
-                                label = "عنوان IP للهاتف",
-                                value = active.ipAddress,
-                                onCopy = { copyToClipboard("عنوان IP", active.ipAddress) }
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Success,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "الشبكة جاهزة للبث والاتصال التلقائي",
+                                    fontSize = 13.sp,
+                                    color = Success,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
-                    }
-                }
-            }
-
-            // --- Network Bypass (تجاوز حجب الشبكات) Card ---
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isProxyRunning) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                ),
-                border = if (isProxyRunning) androidx.compose.foundation.BorderStroke(1.dp, Success) else null
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.VpnLock,
-                                contentDescription = null,
-                                tint = if (isProxyRunning) Success else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "محرك تجاوز حجب الهوت سبوت",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isProxyRunning) Success else Color.Gray.copy(alpha = 0.3f)
-                        ) {
-                            Text(
-                                text = if (isProxyRunning) "نشط ومفعل" else "متوقف",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "هذه الميزة مخصصة للشبكات وشركات الاتصالات التي تحظر أو تفرض رسوماً على بث نقطة الاتصال.\n" +
-                                "لتشغيل الإنترنت في أي جهاز متصل وتخطي الحظر:\n" +
-                                "1. اتصل بشبكة الواي فاي الخاصة بالهاتف.\n" +
-                                "2. في إعدادات الواي فاي بالجهاز المتصل، اختر خادم الوكيل (Proxy -> اليدوي / Manual).\n" +
-                                "3. اكتب الـ Host: ${(hotspotState as? HotspotState.Active)?.ipAddress ?: "192.168.43.1"} والمنفذ (Port): 8282.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 19.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "منفذ الوكيل (Proxy Port): 8282",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        )
-
-                        Text(
-                            text = "البيانات المنقولة: ${totalBytes / 1024} KB",
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                            color = Primary
-                        )
-                    }
-                }
-            }
-
-            // --- Direct System Hotspot (بث الإنترنت المباشر) Card ---
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Wifi,
-                                contentDescription = null,
-                                tint = Primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "بث الإنترنت المباشر (Native Hotspot)",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "إذا كانت شبكتك تسمح بمشاركة الإنترنت دون حظر، يمكنك تشغيل نقطة اتصال النظام الرسمية لمشاركة الإنترنت تلقائياً مع كافة الأجهزة دون الحاجة لأي بروكسي.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 19.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = { viewModel.openSystemTetheringSettings() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                    ) {
-                        Icon(imageVector = Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("فتح نقطة اتصال النظام المباشرة 🌐")
                     }
                 }
             }
@@ -597,7 +545,7 @@ private fun HeroHotspotToggle(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = if (isActive) "اضغط لإيقاف البث" else "اضغط هنا لبدء البث الفوري وتجاوز الحظر",
+            text = if (isActive) "اضغط لإيقاف البث" else "اضغط هنا لبدء البث الفوري للإنترنت",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -675,21 +623,6 @@ private fun ClientItem(client: ConnectedClient) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-        }
-
-        if (client.isBypassActive) {
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = Success.copy(alpha = 0.15f)
-            ) {
-                Text(
-                    text = "Bypass",
-                    color = Success,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                )
             }
         }
     }
