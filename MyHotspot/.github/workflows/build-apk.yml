@@ -23,22 +23,17 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: |
-          chmod +x ./gradlew || true
-          if [ -d "./MyHotspot" ]; then
-            chmod +x ./MyHotspot/gradlew || true
-          fi
+          cd MyHotspot
+          chmod +x ./gradlew
 
       - name: Build with Gradle
         run: |
-          if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace
-          else
-            cd MyHotspot && ./gradlew assembleDebug --stacktrace
-          fi
+          cd MyHotspot
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: MyHotspot-debug-apk
-          path: "**/app/build/outputs/apk/debug/*.apk"
+          path: "MyHotspot/app/build/outputs/apk/debug/*.apk"
           retention-days: 14
