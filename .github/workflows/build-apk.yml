@@ -3,8 +3,6 @@ name: Build MyHotspot APK
 on:
   push:
     branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
   workflow_dispatch:
 
 jobs:
@@ -23,22 +21,18 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Grant execute permission for gradlew
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-          elif [ -f "./MyHotspot/gradlew" ]; then
-            chmod +x ./MyHotspot/gradlew
+          chmod +x ./gradlew || true
+          if [ -d "./MyHotspot" ]; then
+            chmod +x ./MyHotspot/gradlew || true
           fi
 
-      - name: Build Debug APK
+      - name: Build with Gradle
         run: |
           if [ -f "./gradlew" ]; then
             ./gradlew assembleDebug --stacktrace
-          elif [ -f "./MyHotspot/gradlew" ]; then
+          else
             cd MyHotspot && ./gradlew assembleDebug --stacktrace
           fi
 
