@@ -121,6 +121,7 @@ fun HotspotDashboardScreen(
     var showQrDialog by remember { mutableStateOf(false) }
     var selectedTtlTab by remember { mutableIntStateOf(0) }
     var showLocalP2PSection by remember { mutableStateOf(false) }
+    var showHotspotGuideDialog by remember { mutableStateOf(false) }
 
     fun copyToClipboard(label: String, text: String) {
         clipboardManager.setText(AnnotatedString(text))
@@ -279,7 +280,8 @@ fun HotspotDashboardScreen(
                         onClick = {
                             onRequestPermissions()
                             viewModel.saveCredentials(inputSsid, inputPassword)
-                            viewModel.openSystemTetheringSettings()
+                            viewModel.copyPasswordToClipboard()
+                            showHotspotGuideDialog = true
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -301,12 +303,60 @@ fun HotspotDashboardScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = NeonGreen.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(10.dp)
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Success, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "بدون أي أوامر! أي هاتف، لابتوب، أو شاشة ذكية يتصل مباشرة بكلمة المرور فقط وبدون برامج.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ==============================================================
+            // SAMSUNG WI-FI SHARING FEATURE (ميزة سامسونج: مشاركة الواي فاي بدون باقة الشريحة)
+            // ==============================================================
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                border = BorderStroke(1.dp, CyberBlue.copy(alpha = 0.4f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Wifi, contentDescription = null, tint = CyberCyan, modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "🌟 ميزة سامسونج: بث النت من الواي فاي (Wi-Fi Sharing)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "💡 سيتم نسخ كلمة المرور تلقائياً وفتح شاشة الهوتسبوت لتفعيل المفتاح بنقرة واحدة.",
+                        text = "هل تريد توزيع الإنترنت من شبكة الواي فاي الحالية بدلاً من بيانات الشريحة؟\n" +
+                                "هاتفك السامسونج يدعم إعادة بث الواي فاي كمقوي شبكة (Repeater)!\n" +
+                                "طريقة التفعيل: عند فتح نقطة الاتصال، اضغط [ضبط] ثم [خيارات متقدمة] وفعّل [مشاركة Wi-Fi].",
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
                     )
                 }
             }
@@ -603,9 +653,9 @@ fun HotspotDashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "مركز فك حظر الـ TTL (Carrier Bypass)",
+                                text = "🛠️ حل استثنائي: إذا واجهت حجب النت عن الكمبيوتر فقط",
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 15.sp
+                                fontSize = 14.sp
                             )
                         }
                     }
@@ -613,7 +663,8 @@ fun HotspotDashboardScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "إذا اتصل الكمبيوتر بالهوتسبوت وظهرت رسالة 'No Internet, secured'؛ السبب هو حظر شركة الاتصالات للكمبيوتر عبر فحص الـ TTL. لتجاوز الحظر فوراً:",
+                        text = "⚠️ تنبيه: لست بحاجة لكتابة أي أوامر! الهواتف والشاشات ومعظم الأجهزة تتصل وتتصفح تلقائياً.\n" +
+                                "هذا القسم مخصص فقط كحل بديل إذا كانت شركة الاتصالات تحظر باقة التوزيع عن نظام ويندوز وتظهر عبارة 'No Internet':",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 19.sp
@@ -942,4 +993,61 @@ fun HotspotDashboardScreen(
             }
         )
     }
+
+    // ==============================================================
+    // SAMSUNG HOTSPOT GUIDE DIALOG
+    // ==============================================================
+    if (showHotspotGuideDialog) {
+        AlertDialog(
+            onDismissRequest = { showHotspotGuideDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.WifiTethering, contentDescription = null, tint = Primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "بدء بث الإنترنت (هواتف سامسونج)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "سيتم الآن فتح شاشة الهوتسبوت في هاتفك:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "1️⃣ تم نسخ كلمة المرور تلقائياً إلى الحافظة ($inputPassword).\n\n" +
+                                "2️⃣ فعّل مفتاح التشغيل أعلى شاشة سامسونج.\n\n" +
+                                "3️⃣ 🌟 لبث الإنترنت من الواي فاي بدلاً من باقة الشريحة: اضغط [ضبط] ثم [خيارات متقدمة] وفعّل [مشاركة Wi-Fi].\n\n" +
+                                "4️⃣ ✅ أي هاتف أو كمبيوتر أو شاشة يتصل بالشبكة بكلمة المرور فوراً وبدون أي أوامر نهائياً!",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 20.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showHotspotGuideDialog = false
+                        viewModel.openSystemTetheringSettings()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text("فتح إعدادات الهوتسبوت الآن 🚀")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showHotspotGuideDialog = false }) {
+                    Text("إلغاء")
+                }
+            }
+        )
+    }
 }
+
