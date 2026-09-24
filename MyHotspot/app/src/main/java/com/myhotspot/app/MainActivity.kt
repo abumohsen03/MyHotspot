@@ -16,8 +16,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.myhotspot.app.ui.hotspot.HotspotDashboardScreen
-import com.myhotspot.app.ui.hotspot.HotspotViewModel
+import com.myhotspot.app.ui.hotspot.TtlHomeScreen
+import com.myhotspot.app.ui.hotspot.TtlViewModel
 import com.myhotspot.app.ui.theme.MyHotspotTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -36,13 +36,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun MainScreen(viewModel: HotspotViewModel = hiltViewModel()) {
+private fun MainScreen(viewModel: TtlViewModel = hiltViewModel()) {
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (!allGranted) {
-            // Some permissions were denied
+            // Permissions handled
         }
     }
 
@@ -64,7 +64,7 @@ private fun MainScreen(viewModel: HotspotViewModel = hiltViewModel()) {
         requestPermissions()
     }
 
-    HotspotDashboardScreen(
+    TtlHomeScreen(
         viewModel = viewModel,
         onRequestPermissions = requestPermissions
     )

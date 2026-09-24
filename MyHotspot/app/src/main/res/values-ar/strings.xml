@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">TTL Hotspot</string>
+    <string name="app_subtitle">تخطي حظر باقات الهوتسبوت عبر الروت</string>
+    <string name="start_ttl">بدء تشغيل الـ TTL</string>
+    <string name="stop_ttl">إيقاف الـ TTL</string>
+    <string name="ttl_active">الـ TTL نشط</string>
+    <string name="ttl_inactive">الـ TTL متوقف</string>
+    <string name="upstream_interface">واجهة الإنترنت</string>
+    <string name="hotspot_interface">واجهة الهوتسبوت</string>
+    <string name="active_mode">الوضع النشط</string>
+    <string name="connected_devices">الأجهزة المتصلة</string>
+    <string name="settings">الإعدادات</string>
+    <string name="diagnostics">فحص التوافق</string>
+    <string name="command_logs">سجل الأوامر</string>
+    <string name="export_magisk">تصدير سكريبت Magisk</string>
+    <string name="install_magisk">تثبيت في Magisk</string>
+</resources>
